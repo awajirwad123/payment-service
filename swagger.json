@@ -1,0 +1,114 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Payment Service API",
+    "version": "1.5.0",
+    "description": "Handles payment creation, status enquiry, and refunds. PCI-DSS scope — do not log card data."
+  },
+  "servers": [
+    { "url": "https://api.platform.internal/payments", "description": "Internal network" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    },
+    "schemas": {
+      "CreatePaymentRequest": {
+        "type": "object",
+        "required": ["order_id", "amount_cents", "currency", "payment_method_token"],
+        "properties": {
+          "order_id": { "type": "string", "format": "uuid" },
+          "amount_cents": { "type": "integer", "minimum": 1 },
+          "currency": { "type": "string", "enum": ["USD", "EUR", "GBP"] },
+          "payment_method_token": { "type": "string", "description": "Stripe PaymentMethod ID" }
+        }
+      },
+      "PaymentResponse": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "order_id": { "type": "string", "format": "uuid" },
+          "status": { "type": "string", "enum": ["pending", "succeeded", "failed", "refunded"] },
+          "amount_cents": { "type": "integer" },
+          "currency": { "type": "string" },
+          "stripe_charge_id": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CreateRefundRequest": {
+        "type": "object",
+        "required": ["payment_id"],
+        "properties": {
+          "payment_id": { "type": "string", "format": "uuid" },
+          "amount_cents": { "type": "integer", "description": "Partial refund amount. Omit for full refund." }
+        }
+      },
+      "RefundResponse": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "payment_id": { "type": "string", "format": "uuid" },
+          "status": { "type": "string", "enum": ["pending", "succeeded"] },
+          "amount_cents": { "type": "integer" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  },
+  "security": [{ "BearerAuth": [] }],
+  "paths": {
+    "/payments": {
+      "post": {
+        "operationId": "createPayment",
+        "summary": "Create and charge a payment",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreatePaymentRequest" } } }
+        },
+        "responses": {
+          "201": { "description": "Payment created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PaymentResponse" } } } },
+          "400": { "description": "Validation error" },
+          "402": { "description": "Payment declined by gateway" },
+          "422": { "description": "Order already paid" }
+        }
+      }
+    },
+    "/payments/{id}": {
+      "get": {
+        "operationId": "getPayment",
+        "summary": "Get payment status",
+        "parameters": [{ "in": "path", "name": "id", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "200": { "description": "Payment details", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PaymentResponse" } } } },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/refunds": {
+      "post": {
+        "operationId": "createRefund",
+        "summary": "Issue a refund",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateRefundRequest" } } }
+        },
+        "responses": {
+          "201": { "description": "Refund issued", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RefundResponse" } } } },
+          "400": { "description": "Amount exceeds original payment" },
+          "404": { "description": "Payment not found" }
+        }
+      }
+    },
+    "/refunds/{id}": {
+      "get": {
+        "operationId": "getRefund",
+        "summary": "Get refund status",
+        "parameters": [{ "in": "path", "name": "id", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": {
+          "200": { "description": "Refund details", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RefundResponse" } } } },
+          "404": { "description": "Not found" }
+        }
+      }
+    }
+  }
+}

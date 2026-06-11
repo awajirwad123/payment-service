@@ -1,0 +1,62 @@
+// Prisma schema for payment-service
+// Database: PostgreSQL
+// Generator: prisma-client-java (or introspection only)
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id       String    @id @default(uuid()) @db.Uuid
+  email    String    @unique
+  name     String
+  payments Payment[]
+
+  @@map("users")
+}
+
+model Order {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @db.Uuid @map("user_id")
+  totalCents Int       @map("total_cents")
+  currency   String    @default("USD")
+  status     String    @default("pending")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  payments   Payment[]
+
+  @@map("orders")
+}
+
+model Payment {
+  id              String   @id @default(uuid()) @db.Uuid
+  orderId         String   @db.Uuid @map("order_id")
+  userId          String   @db.Uuid @map("user_id")
+  amountCents     Int      @map("amount_cents")
+  currency        String   @default("USD")
+  status          String   @default("pending")
+  stripeChargeId  String?  @map("stripe_charge_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  order           Order    @relation(fields: [orderId], references: [id])
+  user            User     @relation(fields: [userId], references: [id])
+  refunds         Refund[]
+
+  @@index([orderId])
+  @@index([userId])
+  @@map("payments")
+}
+
+model Refund {
+  id          String   @id @default(uuid()) @db.Uuid
+  paymentId   String   @db.Uuid @map("payment_id")
+  amountCents Int      @map("amount_cents")
+  status      String   @default("pending")
+  createdAt   DateTime @default(now()) @map("created_at")
+  payment     Payment  @relation(fields: [paymentId], references: [id])
+
+  @@map("refunds")
+}
