@@ -3,6 +3,13 @@
 A Spring Boot microservice responsible for processing payments, issuing refunds,
 and managing transaction records for the platform.
 
+
+## Architecture Diagram
+
+![payment-service architecture diagram](docs/architecture.png)
+
+*Payment processing flow: mobile/web → Spring Boot → Stripe, order-api, Kafka*
+
 ## Purpose
 
 `payment-service` handles all financial transactions. It integrates with an external
